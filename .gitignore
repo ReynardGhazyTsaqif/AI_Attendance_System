@@ -1,0 +1,43 @@
+# Python
+backend/venv/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+.env
+backend/.env
+frontend/.env
+*.env
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+build/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Uploads / generated files
+backend/uploads/
+backend/static/uploads/
+
+# Logs
+*.log
+
+# Large model files
+*.h5
+*.keras
+*.pt
+*.pth
+*.onnx
+*.pb
+*.tflite
