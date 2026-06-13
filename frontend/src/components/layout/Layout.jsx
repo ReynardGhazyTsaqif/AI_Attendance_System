@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import Sidebar from './Sidebar'
+import { useState } from "react";
+import Sidebar from "./Sidebar";
 
 export default function Layout({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#F7F7F6]">
@@ -21,7 +21,7 @@ export default function Layout({ children }) {
             fixed inset-y-0 left-0 z-30
             lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:shrink-0
             transition-transform duration-200
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
           `}
         >
           <Sidebar onClose={() => setSidebarOpen(false)} />
@@ -48,9 +48,11 @@ export default function Layout({ children }) {
               </svg>
             </button>
 
-            <span className="text-sm font-medium text-gray-800">
-              PresenAI
-            </span>
+            <img
+              src="/LogoTitle.png"
+              alt="PresenAI"
+              className="h-10 w-auto object-contain mr-auto"
+            />
           </div>
 
           <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
@@ -59,5 +61,5 @@ export default function Layout({ children }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
