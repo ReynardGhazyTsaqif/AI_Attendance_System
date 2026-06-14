@@ -1,6 +1,9 @@
 import os
 import smtplib
+import logging
 from email.message import EmailMessage
+
+logger = logging.getLogger(__name__)
 
 
 def get_smtp_config() -> dict:
@@ -9,7 +12,8 @@ def get_smtp_config() -> dict:
         "smtp_password": os.getenv("SMTP_PASSWORD"),
         "admin_email": os.getenv("ADMIN_EMAIL"),
         "smtp_host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
-        "smtp_port": int(os.getenv("SMTP_PORT", "587")),
+        "smtp_port": int(os.getenv("SMTP_PORT", "465")),
+        "smtp_timeout": int(os.getenv("SMTP_TIMEOUT", "30")),
     }
 
 
@@ -37,10 +41,30 @@ def send_email(subject: str, body: str, recipient: str | None = None) -> None:
     message["To"] = recipient
     message.set_content(body)
 
-    with smtplib.SMTP(config["smtp_host"], config["smtp_port"]) as smtp:
-        smtp.starttls()
-        smtp.login(sender, password)
-        smtp.send_message(message)
+    logger.info("Sending email to %s via %s:%s", recipient, config["smtp_host"], config["smtp_port"])
+    try:
+        if config["smtp_port"] == 465:
+            with smtplib.SMTP_SSL(
+                config["smtp_host"],
+                config["smtp_port"],
+                timeout=config["smtp_timeout"],
+            ) as smtp:
+                smtp.login(sender, password)
+                smtp.send_message(message)
+        else:
+            with smtplib.SMTP(
+                config["smtp_host"],
+                config["smtp_port"],
+                timeout=config["smtp_timeout"],
+            ) as smtp:
+                smtp.starttls()
+                smtp.login(sender, password)
+                smtp.send_message(message)
+    except Exception:
+        logger.exception("Failed sending email to %s", recipient)
+        raise
+
+    logger.info("Email sent successfully to %s", recipient)
 
 
 def build_daily_summary_email(stats: dict) -> str:

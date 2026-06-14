@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../../services/api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import ConfirmModal from '../../components/ui/ConfirmModal'
 
 const inputClass = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 transition-all'
 const asArray = v => Array.isArray(v) ? v : []
@@ -16,6 +17,7 @@ export default function SchedulePage() {
   const [dataReady, setDataReady] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const fetchData = async () => {
     setLoading(true); setDataReady(false)
@@ -46,9 +48,13 @@ export default function SchedulePage() {
     } catch (err) { setError(err.response?.data?.detail || 'Gagal menyimpan jadwal') } finally { setSubmitting(false) }
   }
 
-  const handleDelete = async (id, name) => {
-    if (!confirm(`Hapus jadwal "${name}"?`)) return
-    try { await api.delete(`/schedules/${id}`); fetchData() } catch (err) { console.error(err) }
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      await api.delete(`/schedules/${deleteTarget.id}`)
+      setDeleteTarget(null)
+      fetchData()
+    } catch (err) { console.error(err) }
   }
 
   const addTime = (time, mins) => {
@@ -172,7 +178,7 @@ export default function SchedulePage() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handleEdit(s)} className="flex-1 text-xs py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors">Edit</button>
-                <button onClick={() => handleDelete(s.id, s.name)} className="flex-1 text-xs py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors">Hapus</button>
+                <button onClick={() => setDeleteTarget(s)} className="flex-1 text-xs py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors">Hapus</button>
               </div>
             </Card>
           ))}
@@ -197,6 +203,14 @@ export default function SchedulePage() {
           </div>
         </Card>
       )}
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Hapus jadwal?"
+        message={deleteTarget ? `Jadwal "${deleteTarget.name}" akan dihapus.` : ''}
+        confirmText="Hapus Jadwal"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../../services/api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import ConfirmModal from '../../components/ui/ConfirmModal'
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 transition-all'
@@ -15,6 +16,7 @@ export default function LocationPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [gettingLocation, setGettingLocation] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const fetchLocations = async () => {
     try { const res = await api.get('/locations/'); setLocations(res.data) }
@@ -43,9 +45,13 @@ export default function LocationPage() {
     } catch (err) { setError(err.response?.data?.detail || 'Gagal menyimpan lokasi') } finally { setSubmitting(false) }
   }
 
-  const handleDelete = async (id, name) => {
-    if (!confirm(`Hapus lokasi "${name}"?`)) return
-    try { await api.delete(`/locations/${id}`); fetchLocations() } catch (err) { console.error(err) }
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      await api.delete(`/locations/${deleteTarget.id}`)
+      setDeleteTarget(null)
+      fetchLocations()
+    } catch (err) { console.error(err) }
   }
 
   return (
@@ -136,12 +142,20 @@ export default function LocationPage() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handleEdit(loc)} className="flex-1 text-xs py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors">Edit</button>
-                <button onClick={() => handleDelete(loc.id, loc.name)} className="flex-1 text-xs py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors">Hapus</button>
+                <button onClick={() => setDeleteTarget(loc)} className="flex-1 text-xs py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors">Hapus</button>
               </div>
             </Card>
           ))
         )}
       </div>
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Hapus lokasi?"
+        message={deleteTarget ? `Lokasi "${deleteTarget.name}" akan dihapus.` : ''}
+        confirmText="Hapus Lokasi"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

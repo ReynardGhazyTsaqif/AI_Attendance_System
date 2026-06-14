@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../../services/api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import ConfirmModal from '../../components/ui/ConfirmModal'
 
 const emptyForm = {
   name: '',
@@ -29,6 +30,7 @@ export default function UsersPage() {
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const asArray = v => Array.isArray(v) ? v : []
 
@@ -109,11 +111,11 @@ export default function UsersPage() {
     }
   }
 
-  const handleDelete = async (id, name) => {
-    if (!confirm(`Hapus user ${name}?`)) return
-
+  const handleDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await api.delete(`/users/${id}`)
+      await api.delete(`/users/${deleteTarget.id}`)
+      setDeleteTarget(null)
       fetchData()
     } catch (err) {
       console.error(err)
@@ -310,7 +312,7 @@ export default function UsersPage() {
                             user={u}
                             onEdit={handleEdit}
                             onToggleActive={handleToggleActive}
-                            onDelete={handleDelete}
+                            onDelete={setDeleteTarget}
                           />
                         </div>
                       </td>
@@ -379,7 +381,7 @@ export default function UsersPage() {
                         </button>
 
                         <button
-                          onClick={() => handleDelete(u.id, u.name)}
+                          onClick={() => setDeleteTarget(u)}
                           className="rounded-lg bg-red-50 px-2 py-2 text-xs font-medium text-red-600 transition hover:bg-red-100"
                         >
                           Hapus
@@ -393,6 +395,14 @@ export default function UsersPage() {
           </>
         )}
       </Card>
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Hapus user?"
+        message={deleteTarget ? `User ${deleteTarget.name} akan dihapus dari sistem.` : ''}
+        confirmText="Hapus User"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }
@@ -449,7 +459,7 @@ function ActionButtons({ user, onEdit, onToggleActive, onDelete }) {
       </button>
 
       <button
-        onClick={() => onDelete(user.id, user.name)}
+        onClick={() => onDelete(user)}
         className="rounded-lg px-2.5 py-1.5 text-xs text-red-500 transition-colors hover:bg-red-50"
       >
         Hapus

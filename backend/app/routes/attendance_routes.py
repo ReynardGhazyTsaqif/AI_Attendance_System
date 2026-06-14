@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import datetime, date
 from typing import List, Optional
+import logging
 import json
 import os
 
@@ -23,12 +24,14 @@ from app.services.attendance_service import (
     get_user_schedule
 )
 from app.services.dashboard_service import get_daily_attendance_stats
-from app.services.email_service import build_daily_summary_email, send_email
+from app.services.email_service import build_daily_summary_email, get_smtp_config, send_email
+from app.services.resend_email_service import get_resend_config, send_daily_summary_email
 from app.models.department_model import Department
 from app.utils.dependencies import get_current_user, require_admin
 
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
+logger = logging.getLogger(__name__)
 
 ATTENDANCE_FOLDER = "uploads/attendances"
 ALLOWED_TYPES = ["image/jpeg", "image/png", "image/jpg"]
@@ -41,13 +44,75 @@ def send_daily_summary(
     current_user: User = Depends(require_admin)
 ):
     stats = get_daily_attendance_stats(db)
-    body = build_daily_summary_email(stats)
-    try:
-        send_email("Daily Attendance Summary", body)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Gagal mengirim email: {str(exc)}")
+    email_provider = os.getenv("EMAIL_PROVIDER", "smtp").lower()
+
+    if email_provider == "resend":
+        resend_config = get_resend_config()
+        logger.info(
+            "Daily summary requested via Resend by user_id=%s role=%s admin_email=%s resend_from=%s resend_key_configured=%s admin_email_configured=%s",
+            current_user.id,
+            current_user.role,
+            resend_config.get("admin_email"),
+            resend_config.get("from_email"),
+            bool(resend_config.get("api_key")),
+            bool(resend_config.get("admin_email")),
+        )
+        try:
+            result = send_daily_summary_email(stats)
+            logger.info(
+                "Daily summary email sent via Resend to %s response=%s",
+                resend_config.get("admin_email"),
+                result,
+            )
+        except ValueError as exc:
+            logger.warning(
+                "Daily summary Resend configuration error for user_id=%s: %s",
+                current_user.id,
+                exc,
+            )
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            logger.exception(
+                "Daily summary Resend email failed for user_id=%s admin_email=%s",
+                current_user.id,
+                resend_config.get("admin_email"),
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Gagal mengirim email via Resend: {str(exc)}",
+            )
+    else:
+        body = build_daily_summary_email(stats)
+        smtp_config = get_smtp_config()
+
+        logger.info(
+            "Daily summary requested via SMTP by user_id=%s role=%s admin_email=%s smtp_email_configured=%s admin_email_configured=%s",
+            current_user.id,
+            current_user.role,
+            smtp_config.get("admin_email"),
+            bool(smtp_config.get("smtp_email")),
+            bool(smtp_config.get("admin_email")),
+        )
+
+        try:
+            send_email("Daily Attendance Summary", body)
+        except ValueError as exc:
+            logger.warning(
+                "Daily summary SMTP configuration error for user_id=%s: %s",
+                current_user.id,
+                exc,
+            )
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            logger.exception(
+                "Daily summary SMTP email failed for user_id=%s admin_email=%s",
+                current_user.id,
+                smtp_config.get("admin_email"),
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Gagal mengirim email via SMTP: {str(exc)}",
+            )
 
     return {
         "message": "Daily attendance summary berhasil dikirim",
@@ -67,8 +132,12 @@ def get_user_department(db: Session, user: User) -> Department:
 
 def get_department_location(db: Session, dept: Department):
     if not dept.location_id:
-        return None
-    return db.query(Location).filter(Location.id == dept.location_id).first()
+        raise HTTPException(status_code=400, detail="Lokasi absensi departemen belum diset.")
+
+    location = db.query(Location).filter(Location.id == dept.location_id).first()
+    if not location:
+        raise HTTPException(status_code=404, detail="Lokasi absensi departemen tidak ditemukan.")
+    return location
 
 
 @router.post("/check-in", response_model=CheckInResponse)
@@ -128,7 +197,7 @@ async def check_in(
         if not loc_check["valid"]:
             raise HTTPException(
                 status_code=400,
-                detail=f"Lokasi tidak valid. Kamu berada {loc_check['distance_meter']}m dari lokasi absensi (max {loc_check['radius_meter']}m)"
+                detail=f"Anda berada di luar radius absensi. Jarak Anda {loc_check['distance_meter']} meter dari lokasi yang diizinkan."
             )
 
         distance_meter = loc_check["distance_meter"]
@@ -259,7 +328,7 @@ async def check_out(
         if not loc_check["valid"]:
             raise HTTPException(
                 status_code=400,
-                detail=f"Lokasi tidak valid. Kamu berada {loc_check['distance_meter']}m dari lokasi absensi (max {loc_check['radius_meter']}m)"
+                detail=f"Anda berada di luar radius absensi. Jarak Anda {loc_check['distance_meter']} meter dari lokasi yang diizinkan."
             )
 
         distance_meter = loc_check["distance_meter"]

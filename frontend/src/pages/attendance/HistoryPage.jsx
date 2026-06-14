@@ -1,22 +1,24 @@
-import { useState, useEffect } from 'react'
-import api from '../../services/api'
-import { useAuth } from '../../context/AuthContext'
-import Card from '../../components/ui/Card'
+import { useState, useEffect } from "react";
+import api from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
+import Card from "../../components/ui/Card";
 
 const statusStyle = {
-  hadir: 'bg-green-50 text-green-700',
-  terlambat: 'bg-amber-50 text-amber-700',
-  tidak_hadir: 'bg-red-50 text-red-600',
-  izin: 'bg-blue-50 text-blue-700',
-  sakit: 'bg-purple-50 text-purple-700',
-  pulang_cepat: 'bg-orange-50 text-orange-700',
-}
+  hadir: "bg-green-50 text-green-700",
+  terlambat: "bg-amber-50 text-amber-700",
+  tidak_hadir: "bg-red-50 text-red-600",
+  izin: "bg-blue-50 text-blue-700",
+  sakit: "bg-purple-50 text-purple-700",
+  pulang_cepat: "bg-orange-50 text-orange-700",
+};
 
 export default function HistoryPage() {
-  const { user } = useAuth()
-  const [records, setRecords] = useState([])
-  const [summary, setSummary] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth();
+  const [records, setRecords] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const monthlyRecords = records.filter((r) => isSameMonth(r.check_in_time));
+  const monthlySummary = getMonthlySummary(records);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -24,99 +26,90 @@ export default function HistoryPage() {
         const [h, s] = await Promise.all([
           api.get(`/attendance/history/${user.user_id}`),
           api.get(`/dashboard/my-summary`),
-        ])
+        ]);
 
-        setRecords(Array.isArray(h.data) ? h.data : [])
-        setSummary(s.data)
+        setRecords(Array.isArray(h.data) ? h.data : []);
+        setSummary(s.data);
       } catch (err) {
-        console.error(err)
+        console.error(err);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [user])
+    fetchData();
+  }, [user]);
 
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-gray-400">
         Memuat riwayat...
       </div>
-    )
+    );
   }
 
   return (
     <div className="w-full space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-lg font-semibold text-gray-900">
-          Riwayat Absensi
-        </h1>
-        <p className="mt-0.5 text-sm text-gray-400">
-          30 hari terakhir
-        </p>
+        <h1 className="text-lg font-semibold text-gray-900">Riwayat Absensi</h1>
       </div>
 
       {/* Summary chips */}
-      {summary && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          {[
-            {
-              label: 'Hadir',
-              value: summary.hadir,
-              color: 'text-green-700',
-              bg: 'bg-green-50',
-            },
-            {
-              label: 'Terlambat',
-              value: summary.terlambat,
-              color: 'text-amber-700',
-              bg: 'bg-amber-50',
-            },
-            {
-              label: 'Izin',
-              value: summary.izin,
-              color: 'text-blue-700',
-              bg: 'bg-blue-50',
-            },
-            {
-              label: 'Sakit',
-              value: summary.sakit,
-              color: 'text-purple-700',
-              bg: 'bg-purple-50',
-            },
-            {
-              label: 'Tidak Hadir',
-              value: summary.tidak_hadir,
-              color: 'text-red-600',
-              bg: 'bg-red-50',
-            },
-            {
-              label: 'Kehadiran',
-              value: `${summary.attendance_rate}%`,
-              color: 'text-violet-700',
-              bg: 'bg-violet-50',
-            },
-          ].map(item => (
-            <div
-              key={item.label}
-              className={`${item.bg} rounded-xl px-3 py-3 text-center`}
-            >
-              <p className={`text-lg font-semibold ${item.color}`}>
-                {item.value}
-              </p>
-              <p className="mt-0.5 text-[11px] text-gray-400">
-                {item.label}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {[
+          {
+            label: "Hadir",
+            value: monthlySummary.hadir,
+            color: "text-green-700",
+            bg: "bg-green-50",
+          },
+          {
+            label: "Terlambat",
+            value: monthlySummary.terlambat,
+            color: "text-amber-700",
+            bg: "bg-amber-50",
+          },
+          {
+            label: "Izin",
+            value: monthlySummary.izin,
+            color: "text-blue-700",
+            bg: "bg-blue-50",
+          },
+          {
+            label: "Sakit",
+            value: monthlySummary.sakit,
+            color: "text-purple-700",
+            bg: "bg-purple-50",
+          },
+          {
+            label: "Tidak Hadir",
+            value: monthlySummary.tidak_hadir,
+            color: "text-red-600",
+            bg: "bg-red-50",
+          },
+          {
+            label: "Kehadiran",
+            value: `${monthlySummary.attendance_rate}%`,
+            color: "text-violet-700",
+            bg: "bg-violet-50",
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className={`${item.bg} rounded-xl px-3 py-3 text-center`}
+          >
+            <p className={`text-lg font-semibold ${item.color}`}>
+              {item.value}
+            </p>
+            <p className="mt-0.5 text-[11px] text-gray-400">{item.label}</p>
+          </div>
+        ))}
+      </div>
 
       {/* Data */}
       <Card className="overflow-hidden p-0">
-        {records.length === 0 ? (
+        {monthlyRecords.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-400">
             Belum ada riwayat absensi
           </div>
@@ -127,7 +120,14 @@ export default function HistoryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    {['Tanggal', 'Check In', 'Check Out', 'Status', 'Terlambat', 'Akurasi'].map(h => (
+                    {[
+                      "Tanggal",
+                      "Check In",
+                      "Check Out",
+                      "Status",
+                      "Terlambat",
+                      "Akurasi",
+                    ].map((h) => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-xs font-medium text-gray-400"
@@ -139,7 +139,7 @@ export default function HistoryPage() {
                 </thead>
 
                 <tbody>
-                  {records.map(r => (
+                  {monthlyRecords.map((r) => (
                     <tr
                       key={r.id}
                       className="border-b border-gray-50 transition-colors hover:bg-gray-50"
@@ -185,7 +185,7 @@ export default function HistoryPage() {
 
             {/* Mobile Card List */}
             <div className="divide-y divide-gray-100 md:hidden">
-              {records.map(r => (
+              {monthlyRecords.map((r) => (
                 <div key={r.id} className="p-4">
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -242,19 +242,19 @@ export default function HistoryPage() {
         )}
       </Card>
     </div>
-  )
+  );
 }
 
 function StatusBadge({ status }) {
   return (
     <span
       className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-medium capitalize ${
-        statusStyle[status] || 'bg-gray-50 text-gray-500'
+        statusStyle[status] || "bg-gray-50 text-gray-500"
       }`}
     >
-      {status?.replace('_', ' ') || '—'}
+      {status?.replace("_", " ") || "—"}
     </span>
-  )
+  );
 }
 
 function InfoItem({ label, value }) {
@@ -263,36 +263,107 @@ function InfoItem({ label, value }) {
       <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
         {label}
       </p>
-      <p className="mt-1 text-xs font-semibold text-gray-700">
-        {value}
-      </p>
+      <p className="mt-1 text-xs font-semibold text-gray-700">{value}</p>
     </div>
-  )
+  );
 }
 
 function formatDate(value) {
-  if (!value) return '—'
+  if (!value) return "—";
 
-  return new Date(value).toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
+  return new Date(value).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function formatTime(value) {
-  if (!value) return '—'
+  if (!value) return "—";
 
-  return new Date(value).toLocaleTimeString('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return new Date(value).toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatConfidence(value) {
   if (value === null || value === undefined) {
-    return <span className="text-gray-300">—</span>
+    return <span className="text-gray-300">—</span>;
   }
 
-  return `${Number(value).toFixed(1)}%`
+  return `${Number(value).toFixed(1)}%`;
+}
+
+function getCurrentMonthRange() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0);
+
+  return { start, end, year, month };
+}
+
+function isWeekend(date) {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
+function getWorkdaysInMonth() {
+  const { start, end } = getCurrentMonthRange();
+  let total = 0;
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    if (!isWeekend(d)) total += 1;
+  }
+
+  return total;
+}
+
+function isSameMonth(value) {
+  if (!value) return false;
+
+  const date = new Date(value);
+  const now = new Date();
+
+  return (
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  );
+}
+
+function getMonthlySummary(records) {
+  const monthRecords = records.filter((r) => isSameMonth(r.check_in_time));
+  const workdays = getWorkdaysInMonth();
+
+  const count = {
+    hadir: 0,
+    terlambat: 0,
+    izin: 0,
+    sakit: 0,
+    pulang_cepat: 0,
+  };
+
+  monthRecords.forEach((r) => {
+    if (count[r.status] !== undefined) {
+      count[r.status] += 1;
+    }
+  });
+
+  const recordedDays = monthRecords.length;
+  const tidakHadir = Math.max(workdays - recordedDays, 0);
+
+  const attendanceRate =
+    workdays > 0
+      ? Math.round(((count.hadir + count.terlambat) / workdays) * 100)
+      : 0;
+
+  return {
+    ...count,
+    tidak_hadir: tidakHadir,
+    attendance_rate: attendanceRate,
+    workdays,
+  };
 }

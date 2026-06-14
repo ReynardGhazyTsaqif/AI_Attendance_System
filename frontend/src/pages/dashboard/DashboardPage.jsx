@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import api from '../../services/api'
 import Card from '../../components/ui/Card'
+import { useAuth } from '../../context/AuthContext'
 
 const statusBadge = {
   hadir: 'bg-green-50 text-green-700',
@@ -50,6 +51,7 @@ function CompactMetric({ label, value }) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth()
   const [summary, setSummary] = useState(null)
   const [imageStats, setImageStats] = useState(null)
   const [trend, setTrend] = useState([])
@@ -84,15 +86,38 @@ export default function DashboardPage() {
   }, [])
 
   const handleSendDailySummary = async () => {
+    if (user?.role !== 'admin') {
+      setEmailMessage('')
+      setEmailError('Akses ditolak. Hanya admin yang dapat mengirim laporan harian.')
+      return
+    }
+
     setSendingEmail(true)
     setEmailMessage('')
     setEmailError('')
 
     try {
-      const res = await api.post('/attendance/send-daily-summary')
+      if (import.meta.env.DEV) {
+        console.info('[DailySummary] POST /attendance/send-daily-summary', {
+          hasToken: !!localStorage.getItem('token'),
+          role: user?.role,
+        })
+      }
+
+      const res = await api.post('/attendance/send-daily-summary', null)
       setEmailMessage(res.data?.message || 'Laporan harian berhasil dikirim.')
     } catch (err) {
-      setEmailError(err.response?.data?.detail || 'Gagal mengirim laporan harian.')
+      const detail = err.response?.data?.detail
+      const message = formatErrorDetail(detail) || err.message || 'Gagal mengirim laporan harian.'
+
+      if (import.meta.env.DEV) {
+        console.error('[DailySummary] request failed', {
+          status: err.response?.status,
+          detail,
+        })
+      }
+
+      setEmailError(message)
     } finally {
       setSendingEmail(false)
     }
@@ -378,6 +403,25 @@ function formatTime(value) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function formatErrorDetail(detail) {
+  if (!detail) return ''
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map(item => {
+        if (typeof item === 'string') return item
+        if (item?.msg) {
+          const location = Array.isArray(item.loc) ? item.loc.join('.') : ''
+          return `${location ? `${location}: ` : ''}${item.msg}`
+        }
+        return JSON.stringify(item)
+      })
+      .join('; ')
+  }
+  if (typeof detail === 'object') return detail.msg || JSON.stringify(detail)
+  return String(detail)
 }
 
 function MailIcon() {

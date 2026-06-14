@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../../services/api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import ConfirmModal from '../../components/ui/ConfirmModal'
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 transition-all'
@@ -15,6 +16,7 @@ export default function DepartmentPage() {
   const [form, setForm] = useState({ name: '', location_id: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const asArray = v => Array.isArray(v) ? v : []
 
@@ -40,9 +42,13 @@ export default function DepartmentPage() {
     } catch (err) { setError(err.response?.data?.detail || 'Gagal menyimpan') } finally { setSubmitting(false) }
   }
 
-  const handleDelete = async (id, name) => {
-    if (!confirm(`Hapus departemen "${name}"?`)) return
-    try { await api.delete(`/departments/${id}`); fetchData() } catch (err) { console.error(err) }
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      await api.delete(`/departments/${deleteTarget.id}`)
+      setDeleteTarget(null)
+      fetchData()
+    } catch (err) { console.error(err) }
   }
 
   return (
@@ -114,13 +120,21 @@ export default function DepartmentPage() {
                 </div>
                 <div className="flex gap-1">
                   <button onClick={() => handleEdit(dept)} className="text-xs px-2.5 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">Edit</button>
-                  <button onClick={() => handleDelete(dept.id, dept.name)} className="text-xs px-2.5 py-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors">Hapus</button>
+                  <button onClick={() => setDeleteTarget(dept)} className="text-xs px-2.5 py-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors">Hapus</button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </Card>
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Hapus departemen?"
+        message={deleteTarget ? `Departemen "${deleteTarget.name}" akan dihapus.` : ''}
+        confirmText="Hapus Departemen"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }
