@@ -1,9 +1,13 @@
 [phases.setup]
-nixPkgs = ["libxcb", "libGL", "glib"]
+nixPkgs = ["libxcb", "libGL", "glib", "gobject-introspection"]
 
 [phases.install]
 cmds = [
   "pip install --upgrade pip",
-  "pip uninstall -y opencv-python opencv-contrib-python || true",
-  "pip install -r requirements.txt"
+  "pip install opencv-python-headless==4.13.0.92",
+  "pip install -r requirements.txt",
+  "pip uninstall -y opencv-python opencv-contrib-python || true"
 ]
+
+[start]
+cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
