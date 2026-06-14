@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import api from '../../services/api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
-import FormModal from '../../components/ui/FormModal'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import FormModal from '../../components/ui/FormModal'
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 transition-all'
