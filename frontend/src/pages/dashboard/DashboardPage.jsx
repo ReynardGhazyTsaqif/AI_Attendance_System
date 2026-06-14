@@ -105,7 +105,7 @@ export default function DashboardPage() {
       }
 
       const res = await api.post('/attendance/send-daily-summary', null)
-      setEmailMessage(res.data?.message || 'Laporan harian berhasil dikirim.')
+      setEmailMessage(res.data?.message || 'Laporan harian sedang diproses dan akan dikirim ke email.')
     } catch (err) {
       const detail = err.response?.data?.detail
       const message = formatErrorDetail(detail) || err.message || 'Gagal mengirim laporan harian.'

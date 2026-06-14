@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import datetime, date
 from typing import List, Optional
@@ -24,7 +24,6 @@ from app.services.attendance_service import (
     get_user_schedule
 )
 from app.services.dashboard_service import get_daily_attendance_stats
-from app.services.email_service import build_daily_summary_email, get_smtp_config, send_email
 from app.services.resend_email_service import get_resend_config, send_daily_summary_email
 from app.models.department_model import Department
 from app.utils.dependencies import get_current_user, require_admin
@@ -40,84 +39,66 @@ MIN_CONFIDENCE = 75.0  # minimum confidence score untuk diterima
 
 @router.post("/send-daily-summary")
 def send_daily_summary(
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
     stats = get_daily_attendance_stats(db)
-    email_provider = os.getenv("EMAIL_PROVIDER", "smtp").lower()
+    email_provider = os.getenv("EMAIL_PROVIDER", "resend").lower()
+    resend_config = get_resend_config()
 
-    if email_provider == "resend":
-        resend_config = get_resend_config()
-        logger.info(
-            "Daily summary requested via Resend by user_id=%s role=%s admin_email=%s resend_from=%s resend_key_configured=%s admin_email_configured=%s",
-            current_user.id,
-            current_user.role,
-            resend_config.get("admin_email"),
-            resend_config.get("from_email"),
-            bool(resend_config.get("api_key")),
-            bool(resend_config.get("admin_email")),
-        )
-        try:
-            result = send_daily_summary_email(stats)
-            logger.info(
-                "Daily summary email sent via Resend to %s response=%s",
-                resend_config.get("admin_email"),
-                result,
-            )
-        except ValueError as exc:
-            logger.warning(
-                "Daily summary Resend configuration error for user_id=%s: %s",
-                current_user.id,
-                exc,
-            )
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            logger.exception(
-                "Daily summary Resend email failed for user_id=%s admin_email=%s",
-                current_user.id,
-                resend_config.get("admin_email"),
-            )
-            raise HTTPException(
-                status_code=500,
-                detail=f"Gagal mengirim email via Resend: {str(exc)}",
-            )
-    else:
-        body = build_daily_summary_email(stats)
-        smtp_config = get_smtp_config()
-
-        logger.info(
-            "Daily summary requested via SMTP by user_id=%s role=%s admin_email=%s smtp_email_configured=%s admin_email_configured=%s",
-            current_user.id,
-            current_user.role,
-            smtp_config.get("admin_email"),
-            bool(smtp_config.get("smtp_email")),
-            bool(smtp_config.get("admin_email")),
+    if email_provider != "resend":
+        logger.warning(
+            "Daily summary email provider is '%s', but this endpoint now uses Resend.",
+            email_provider,
         )
 
-        try:
-            send_email("Daily Attendance Summary", body)
-        except ValueError as exc:
-            logger.warning(
-                "Daily summary SMTP configuration error for user_id=%s: %s",
-                current_user.id,
-                exc,
-            )
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            logger.exception(
-                "Daily summary SMTP email failed for user_id=%s admin_email=%s",
-                current_user.id,
-                smtp_config.get("admin_email"),
-            )
-            raise HTTPException(
-                status_code=500,
-                detail=f"Gagal mengirim email via SMTP: {str(exc)}",
-            )
+    if not resend_config.get("api_key"):
+        raise HTTPException(status_code=400, detail="RESEND_API_KEY belum dikonfigurasi.")
+    if not resend_config.get("admin_email"):
+        raise HTTPException(status_code=400, detail="ADMIN_EMAIL belum dikonfigurasi.")
+
+    logger.info(
+        "Daily summary queued via Resend by user_id=%s role=%s admin_email=%s resend_from=%s resend_key_configured=%s",
+        current_user.id,
+        current_user.role,
+        resend_config.get("admin_email"),
+        resend_config.get("from_email"),
+        bool(resend_config.get("api_key")),
+    )
+    background_tasks.add_task(run_resend_daily_summary_email, stats, current_user.id)
 
     return {
-        "message": "Daily attendance summary berhasil dikirim",
+        "message": "Daily attendance summary sedang diproses dan akan dikirim ke email",
         "summary": stats,
     }
+
+
+def run_resend_daily_summary_email(summary: dict, requested_by_user_id: int) -> None:
+    resend_config = get_resend_config()
+    admin_email = resend_config.get("admin_email")
+
+    logger.info(
+        "Starting Resend daily summary email background task user_id=%s admin_email=%s resend_from=%s",
+        requested_by_user_id,
+        admin_email,
+        resend_config.get("from_email"),
+    )
+
+    try:
+        result = send_daily_summary_email(summary)
+        logger.info(
+            "Resend daily summary email sent successfully to %s response=%s",
+            admin_email,
+            result,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Resend daily summary email failed for user_id=%s admin_email=%s error=%s",
+            requested_by_user_id,
+            admin_email,
+            exc,
+        )
 
 
 def get_user_department(db: Session, user: User) -> Department:
