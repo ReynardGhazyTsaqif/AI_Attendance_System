@@ -1,13 +1,5 @@
 import { useEffect } from 'react'
 
-/**
- * FormModal — reusable modal wrapper for add/edit forms
- * Props:
- *   open: boolean
- *   title: string
- *   onClose: () => void
- *   children: ReactNode
- */
 export default function FormModal({ open, title, onClose, children }) {
   // Close on Escape
   useEffect(() => {
