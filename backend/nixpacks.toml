@@ -1,13 +1,26 @@
 [phases.setup]
-nixPkgs = ["libxcb", "libGL", "glib", "gobject-introspection"]
+nixPkgs = [
+  "python311",
+  "gcc",
+  "pkg-config",
+  "zlib",
+  "glib",
+  "libGL",
+  "xorg.libxcb",
+  "xorg.libX11",
+  "xorg.libXext",
+  "xorg.libXrender",
+  "xorg.libSM",
+  "xorg.libICE"
+]
 
 [phases.install]
 cmds = [
-  "pip install --upgrade pip",
-  "pip install opencv-python-headless==4.13.0.92",
-  "pip install -r requirements.txt",
-  "pip uninstall -y opencv-python opencv-contrib-python || true"
+  "python -m pip install --upgrade pip setuptools wheel",
+  "python -m pip install --no-cache-dir -r requirements.txt",
+  "python -m pip uninstall -y opencv-python opencv-contrib-python opencv-contrib-python-headless || true",
+  "python -m pip install --no-cache-dir --force-reinstall opencv-python-headless==4.13.0.92"
 ]
 
 [start]
-cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+cmd = "python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
