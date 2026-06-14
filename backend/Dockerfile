@@ -35,4 +35,4 @@ RUN python -m pip install --force-reinstall opencv-python-headless==4.13.0.92
 
 COPY . .
 
-CMD ["/bin/sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
